@@ -1,7 +1,78 @@
-Usa el siguiente comando para levantar un contenedor de Jenkins
+# 📦 Spring Boot + Jenkins CI/CD + SonarQube + JaCoCo
 
-docker pull jenkins/jenkins:lts
+Este proyecto es una aplicación web desarrollada con Spring Boot que implementa un pipeline CI/CD utilizando **Jenkins**, con integración de análisis mediante **SonarQube** y reporte de cobertura de pruebas con **JaCoCo**.
 
-docker volume create jenkins_data
+---
 
-docker run -p 8080:8080 -p 50000:50000 -v jenkins_data:/var/jenkins_home jenkins/jenkins:lts
+## 🚀 Tecnologías utilizadas
+
+- Java 21  
+- Spring Boot 3.5.4  
+- Gradle 8.14.3  
+- Jenkins (con Docker)  
+- SonarQube  
+- JaCoCo  
+- Checkstyle  
+- GitHub (repositorio remoto)  
+
+---
+
+## 🛠️ Requisitos
+
+- Docker y Docker Compose  
+- Git  
+- Jenkins instalado (puede ser con Docker)  
+- SonarQube instalado (puede ser con Docker)  
+- Java 21  
+- Acceso a GitHub  
+
+---
+
+## ⚙️ Estructura del pipeline (Jenkinsfile)
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        SONARQUBE_TOKEN = credentials('sonarqube-token')
+    }
+
+    triggers {
+        pollSCM('* * * * *')
+    }
+
+    stages {
+        stage("Compile") {
+            steps {
+                sh "./gradlew compileJava"
+            }
+        }
+
+        stage("Unit test") {
+            steps {
+                sh "./gradlew test"
+            }
+        }
+
+        stage("Code coverage") {
+            steps {
+                sh "./gradlew jacocoTestReport"
+                publishHTML(target: [
+                    reportDir: 'build/reports/jacoco/test/html',
+                    reportFiles: 'index.html',
+                    reportName: 'JacocoReport'
+                ])
+                sh "./gradlew jacocoTestCoverageVerification"
+            }
+        }
+
+        stage('SonarQube analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh "./gradlew sonarqube -Dsonar.login=$SONARQUBE_TOKEN"
+                }
+            }
+        }
+    }
+}
